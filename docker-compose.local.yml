@@ -1,0 +1,91 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: vdnh-afisha-laravel
+    restart: unless-stopped
+    working_dir: /var/www
+    env_file:
+      - .env
+    volumes:
+      - .:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - vdnh-afisha-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: vdnh-afisha-nginx
+    restart: unless-stopped
+    ports:
+      - '8000:80'
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/conf.d/app.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+    networks:
+      - vdnh-afisha-network
+
+  postgres:
+    image: postgres:17
+    container_name: vdnh-afisha-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vdnh-afisha-network
+
+  memcached:
+    image: memcached:alpine
+    container_name: vdnh-afisha-memcached
+    restart: unless-stopped
+    ports:
+      - '11211:11211'
+    networks:
+      - vdnh-afisha-network
+
+  redis:
+    image: redis:alpine
+    container_name: vdnh-afisha-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    networks:
+      - vdnh-afisha-network
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    container_name: vdnh-afisha-swagger
+    restart: unless-stopped
+    ports:
+      - '8081:8080'
+    environment:
+      SWAGGER_JSON_URL: /docs/openapi.yaml
+    volumes:
+      - ./public/docs:/usr/share/nginx/html/docs
+    networks:
+      - vdnh-afisha-network
+
+volumes:
+  pg_data:
+    driver: local
+
+networks:
+  vdnh-afisha-network:
+    driver: bridge

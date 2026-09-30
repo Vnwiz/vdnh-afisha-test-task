@@ -1,0 +1,9 @@
+.git
+.idea
+.env
+.env.*
+node_modules
+vendor
+storage
+public/storage
+docker-compose.ci.yml
